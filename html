@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apartment Rental Investment Calculator</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const RentalInvestmentCalc = () => {
+          const [loanAmount, setLoanAmount] = useState(22500);
+          const [monthlyRent, setMonthlyRent] = useState(600);
+          const [vacancyMonths, setVacancyMonths] = useState(2.5);
+          const [interestRate, setInterestRate] = useState(12);
+          const [loanTerm, setLoanTerm] = useState(5);
+          
+          const [maintenancePct, setMaintenancePct] = useState(5);
+          const [utilitiesCost, setUtilitiesCost] = useState(50);
+          const [propertyTax, setPropertyTax] = useState(200);
+          const [insurance, setInsurance] = useState(150);
+          const [managementFee, setManagementFee] = useState(0);
+          const [repairReserve, setRepairReserve] = useState(50);
+
+          const occupancyRate = ((12 - vacancyMonths) / 12) * 100;
+          const annualRentGross = monthlyRent * (12 - vacancyMonths);
+          
+          const annualExpenses = {
+            maintenance: (annualRentGross * maintenancePct) / 100,
+            utilities: utilitiesCost * vacancyMonths,
+            propertyTax: propertyTax,
+            insurance: insurance,
+            management: (annualRentGross * managementFee) / 100,
+            repairs: repairReserve * 12
+          };
+          
+          const totalAnnualExpenses = Object.values(annualExpenses).reduce((a, b) => a + b, 0);
+          
+          const monthlyInterestRate = interestRate / 100 / 12;
+          const numberOfPayments = loanTerm * 12;
+          
+          let monthlyPayment, annualDebtService, totalInterestPaid;
+          
+          if (interestRate === 0) {
+            monthlyPayment = loanAmount / numberOfPayments;
+            annualDebtService = monthlyPayment * 12;
+            totalInterestPaid = 0;
+          } else {
+            monthlyPayment = loanAmount * 
+              (monthlyInterestRate * Math.pow(1 + monthlyInterestRate, numberOfPayments)) / 
+              (Math.pow(1 + monthlyInterestRate, numberOfPayments) - 1);
+            annualDebtService = monthlyPayment * 12;
+            totalInterestPaid = (monthlyPayment * numberOfPayments) - loanAmount;
+          }
+          
+          const annualNetOperatingIncome = annualRentGross - totalAnnualExpenses;
+          const annualNetProfit = annualNetOperatingIncome - annualDebtService;
+          const monthlyNetProfit = annualNetProfit / 12;
+          
+          const cashOnCashReturn = (annualNetProfit / loanAmount) * 100;
+          const breakEvenYears = loanAmount / Math.max(annualNetProfit, 1);
+          const capRate = (annualNetOperatingIncome / loanAmount) * 100;
+          
+          const paybackMonths = [];
+          let remainingDebt = loanAmount;
+          let cumulativeProfit = 0;
+          
+          for (let month = 1; month <= numberOfPayments; month++) {
+            const principal = interestRate === 0 ? 
+              loanAmount / numberOfPayments : 
+              monthlyPayment - (remainingDebt * monthlyInterestRate);
+            remainingDebt -= principal;
+            cumulativeProfit += monthlyNetProfit;
+            
+            if (month % 12 === 0 || month === numberOfPayments) {
+              paybackMonths.push({
+                year: Math.ceil(month / 12),
+                month: month,
+                remainingDebt: Math.max(0, remainingDebt),
+                cumulativeProfit: cumulativeProfit
+              });
+            }
+          }
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-800 to-purple-900 p-8">
+              <div className="max-w-7xl mx-auto">
+                <div className="text-center mb-8">
+                  <h1 className="text-4xl font-bold text-white mb-2">🏠 Apartment Rental Investment Calculator</h1>
+                  <p className="text-blue-200">Complete Financial Analysis Tool</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
+                    <h3 className="text-lg font-semibold mb-2">💰 Monthly Net Profit</h3>
+                    <p className="text-4xl font-bold">${monthlyNetProfit.toFixed(0)}</p>
+                    <p className="text-green-100 text-sm mt-1">After all expenses & loan payment</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+                    <h3 className="text-lg font-semibold mb-2">📅 Loan Payoff Time</h3>
+                    <p className="text-4xl font-bold">{loanTerm} years</p>
+                    <p className="text-blue-100 text-sm mt-1">Total interest: ${totalInterestPaid.toFixed(0)}</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+                    <h3 className="text-lg font-semibold mb-2">📈 Cash-on-Cash ROI</h3>
+                    <p className="text-4xl font-bold">{cashOnCashReturn.toFixed(1)}%</p>
+                    <p className="text-purple-100 text-sm mt-1">Annual return on investment</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                  <div className="bg-white rounded-xl p-6 shadow-lg">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4">💰 Loan & Income Parameters</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Loan Amount: ${loanAmount.toLocaleString()}
+                        </label>
+                        <input
+                          type="range"
+                          min="20000"
+                          max="25000"
+                          step="500"
+                          value={loanAmount}
+                          onChange={(e) => setLoanAmount(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Monthly Rent: ${monthlyRent}
+                        </label>
+                        <input
+                          type="range"
+                          min="400"
+                          max="800"
+                          step="50"
+                          value={monthlyRent}
+                          onChange={(e) => setMonthlyRent(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Vacancy per Year: {vacancyMonths} months ({occupancyRate.toFixed(0)}% occupancy)
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="4"
+                          step="0.5"
+                          value={vacancyMonths}
+                          onChange={(e) => setVacancyMonths(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Interest Rate: {interestRate}% per year
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="20"
+                          step="0.5"
+                          value={interestRate}
+                          onChange={(e) => setInterestRate(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Loan Term: {loanTerm} years
+                        </label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          step="1"
+                          value={loanTerm}
+                          onChange={(e) => setLoanTerm(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-6 shadow-lg">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4">🔧 Annual Operating Expenses</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Maintenance: {maintenancePct}% of rent (${annualExpenses.maintenance.toFixed(0)}/year)
+                        </label>
+                        <input
+                          type="range"
+                          min="3"
+                          max="10"
+                          step="0.5"
+                          value={maintenancePct}
+                          onChange={(e) => setMaintenancePct(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Utilities During Vacancy: ${utilitiesCost}/month (${annualExpenses.utilities.toFixed(0)}/year)
+                        </label>
+                        <input
+                          type="range"
+                          min="30"
+                          max="100"
+                          step="10"
+                          value={utilitiesCost}
+                          onChange={(e) => setUtilitiesCost(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Property Tax: ${propertyTax}/year
+                        </label>
+                        <input
+                          type="range"
+                          min="100"
+                          max="500"
+                          step="50"
+                          value={propertyTax}
+                          onChange={(e) => setPropertyTax(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Insurance: ${insurance}/year
+                        </label>
+                        <input
+                          type="range"
+                          min="100"
+                          max="300"
+                          step="25"
+                          value={insurance}
+                          onChange={(e) => setInsurance(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Management Fee: {managementFee}% (${annualExpenses.management.toFixed(0)}/year)
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="10"
+                          step="1"
+                          value={managementFee}
+                          onChange={(e) => setManagementFee(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Repair Reserve: ${repairReserve}/month (${annualExpenses.repairs.toFixed(0)}/year)
+                        </label>
+                        <input
+                          type="range"
+                          min="25"
+                          max="100"
+                          step="25"
+                          value={repairReserve}
+                          onChange={(e) => setRepairReserve(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
+                  <h3 className="text-2xl font-bold text-gray-800 mb-6">📊 Annual Financial Breakdown</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-bold text-gray-700 mb-3">Income</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between py-2 border-b">
+                          <span className="text-gray-600">Gross Rental Income</span>
+                          <span className="font-semibold text-green-600">${annualRentGross.toFixed(0)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 text-sm text-gray-500">
+                          <span>Monthly rent × {(12 - vacancyMonths).toFixed(1)} months</span>
+                          <span>${monthlyRent} × {(12 - vacancyMonths).toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-gray-700 mb-3">Operating Expenses</h4>
+                      <div className="space-y-2">
+                        {Object.entries(annualExpenses).map(([key, value]) => (
+                          <div key={key} className="flex justify-between py-1 text-sm">
+                            <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                            <span className="text-red-600">-${value.toFixed(0)}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between py-2 border-t font-semibold">
+                          <span className="text-gray-700">Total Operating Expenses</span>
+                          <span className="text-red-600">-${totalAnnualExpenses.toFixed(0)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-blue-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-1">Net Operating Income (NOI)</p>
+                        <p className="text-2xl font-bold text-blue-600">${annualNetOperatingIncome.toFixed(0)}</p>
+                        <p className="text-xs text-gray-500 mt-1">Before debt service</p>
+                      </div>
+                      
+                      <div className="bg-orange-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-1">Annual Debt Service</p>
+                        <p className="text-2xl font-bold text-orange-600">-${annualDebtService.toFixed(0)}</p>
+                        <p className="text-xs text-gray-500 mt-1">${monthlyPayment.toFixed(0)}/month × 12</p>
+                      </div>
+                      
+                      <div className="bg-green-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-1">Net Annual Profit</p>
+                        <p className="text-2xl font-bold text-green-600">${annualNetProfit.toFixed(0)}</p>
+                        <p className="text-xs text-gray-500 mt-1">${monthlyNetProfit.toFixed(0)}/month</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
+                  <h3 className="text-2xl font-bold text-gray-800 mb-4">📅 Debt Payback Timeline</h3>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Year</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Remaining Debt</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Cumulative Profit</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Debt Paid Off</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paybackMonths.map((row) => (
+                          <tr key={row.year} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm font-medium">Year {row.year}</td>
+                            <td className="px-4 py-3 text-sm text-right text-red-600">
+                              ${row.remainingDebt.toFixed(0)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right text-green-600">
+                              ${row.cumulativeProfit.toFixed(0)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right">
+                              {((1 - row.remainingDebt / loanAmount) * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 shadow-lg">
+                  <h3 className="text-2xl font-bold text-gray-800 mb-4">📈 Investment Metrics</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-purple-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Cap Rate</p>
+                      <p className="text-2xl font-bold text-purple-600">{capRate.toFixed(2)}%</p>
+                    </div>
+                    
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Cash-on-Cash ROI</p>
+                      <p className="text-2xl font-bold text-blue-600">{cashOnCashReturn.toFixed(2)}%</p>
+                    </div>
+                    
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Break-Even Time</p>
+                      <p className="text-2xl font-bold text-green-600">{breakEvenYears.toFixed(1)} yrs</p>
+                    </div>
+                    
+                    <div className="bg-orange-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Total Interest</p>
+                      <p className="text-2xl font-bold text-orange-600">${totalInterestPaid.toFixed(0)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {(monthlyNetProfit < 50 || cashOnCashReturn < 5) && (
+                  <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">⚠️</span>
+                      <div>
+                        <h4 className="font-bold text-yellow-800 mb-2">Investment Warning</h4>
+                        <ul className="text-sm text-yellow-700 space-y-1">
+                          {monthlyNetProfit < 50 && (
+                            <li>• Low monthly profit margin - consider increasing rent or reducing expenses</li>
+                          )}
+                          {cashOnCashReturn < 5 && (
+                            <li>• Low ROI - typical rental properties should yield 8-12% cash-on-cash return</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<RentalInvestmentCalc />, document.getElementById('root'));
+    </script>
+</body>
+</html>
